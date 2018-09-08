@@ -7,6 +7,8 @@ from torch.utils import data
 
 from datahandler.utils import get_dataset
 from model import DeepVoxelFlow
+from losses import L1loss
+from utils import show_progress
 
 
 class Trainer:
@@ -46,11 +48,11 @@ class Trainer:
         self.model = DeepVoxelFlow(name = 'dvf')
         self.images_t_syn, self.flow = self.model(self.images[:,0], self.images[:,-1], self.t)
 
-        # TODO: loss implementation
-        loss = loss_func(self.images[:,1], self.images_t_syn)
+        # L1 reproduction loss
+        self.loss = L1loss(self.images[:,1], self.images_t_syn)
         # TODO: weight regularization (if required in the paper)
-        weights_l2 = tf.reduce_sum([tf.nn.l2_loss(var) for var in self.model.vars])
-        self.loss = loss + self.args.lambda_*weights_l2
+        # weights_l2 = tf.reduce_sum([tf.nn.l2_loss(var) for var in self.model.vars])
+        # self.loss = loss + self.args.lambda_*weights_l2
 
         self.optimizer = tf.train.AdamOptimizer(learning_rate = self.args.lr)\
                          .minimize(self.loss, var_list = self.model.vars)
@@ -64,4 +66,15 @@ class Trainer:
 
     def train(self):
         train_start = time.time()
+        for e in range(self.args.num_epochs):
+            for i, (images, t) in enumerate(self.tloader):
+                images = images.numpy()/255.0
+                t = t.numpy()
+
+                time_s = time.time()
+                _, loss = self.sess.run([self.optimizer, self.loss],
+                                        feed_dict = {self.images: images, self.t: t})
+
+                if i%20 == 0:
+                    
         
