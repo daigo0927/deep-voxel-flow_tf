@@ -24,7 +24,7 @@ class Trainer:
         dset = get_dataset(self.args.dataset)
         data_args = {'dataset_dir':self.args.dataset_dir,
                      'strides':self.args.strides, 'stretchable':self.args.stretchable,
-                     'cropper':self.crop_type, 'crop_shape':self.args.crop_shape,
+                     'cropper':self.args.crop_type, 'crop_shape':self.args.crop_shape,
                      'resize_shape':self.args.resize_shape, 'resize_scale':self.args.resize_scale}
         if self.args.dataset == 'davis_v':
             data_args['resolution'] = self.args.resolution
@@ -36,14 +36,14 @@ class Trainer:
 
         load_args = {'batch_size':self.args.batch_size, 'num_workers':self.args.num_workers,
                      'pin_memory':True, 'drop_last':True}
-        self.num_batches = int(len(self.tset)/self.args.batch_size)
+        self.num_batches = int(len(tset)/self.args.batch_size)
         self.tloader = data.DataLoader(tset, shuffle = True, **load_args)
         self.vloader = data.DataLoader(vset, shuffle = False, **load_args)
 
     def _build_graph(self):
-        self.images = tf.placeholder(tf.float32, shape = [None, 3]+self.ars.image_size+[3]
+        self.images = tf.placeholder(tf.float32, shape = [None, 3]+self.args.image_size+[3],
                                      name = 'images')
-        self.t = tf.placeholder(tf.flaot32, shape = [None], 't')
+        self.t = tf.placeholder(tf.float32, shape = [None], name = 't')
 
         self.model = DeepVoxelFlow(name = 'dvf')
         self.images_t_syn, self.flow = self.model(self.images[:,0], self.images[:,-1], self.t)
@@ -77,7 +77,7 @@ class Trainer:
 
                 if i%20 == 0:
                     batch_time = time.time() - time_s
-                    kwargs = {'loss':loss, 'batch time'batch_time}
+                    kwargs = {'loss':loss, 'batch time':batch_time}
                     show_progress(e+1, i+1, self.num_batches, **kwargs)
 
             loss_vals = []
@@ -119,7 +119,7 @@ if __name__ == '__main__':
                         choices = ['480p', 'Full-resolution'],
                         help = 'Resolution option for DAVIS dataset')
     parser.add_argument('--mode', type = str, default = 'clean',
-                        choices = ['clean', 'final']
+                        choices = ['clean', 'final'],
                         help = 'Image quality option for MPI-Sintel dataset')
     
     parser.add_argument('--num_epochs', type = int, default = 100,
@@ -147,7 +147,7 @@ if __name__ == '__main__':
                         help = 'Enable output visualization, [enabled]')
     parser.add_argument('--no_visualize', dest = 'visualize', action = 'store_false',
                         help = 'Disable output visualization, [enabled]')
-    parser.add_argument(visualize = True)
+    parser.set_defaults(visualize = True)
     parser.add_argument('--resume', type = str, default = None,
                         help = 'Learned parameter checkpoint file [None]')
 

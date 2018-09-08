@@ -9,7 +9,7 @@ def get_meshgrid(images):
 
 def bilinear_warp(images, flow):
     _, h, w, _ = tf.unstack(tf.shape(images))
-    gb, gy, gx = get_meshgrid(x)
+    gb, gy, gx = get_meshgrid(images)
     gb = tf.cast(gb, tf.float32)
     gy = tf.cast(gy, tf.float32)
     gx = tf.cast(gx, tf.float32)
@@ -59,17 +59,17 @@ class DeepVoxelFlow(object):
             conv1 = tf.layers.BatchNormalization()(conv1)
             conv1 = tf.nn.leaky_relu(conv1, 0.2)
 
-            conv2 = tf.layers.MaxPooling2D((2, 2), (2, 2) 'same')(conv1)
+            conv2 = tf.layers.MaxPooling2D((2, 2), (2, 2), 'same')(conv1)
             conv2 = tf.layers.Conv2D(128, (5, 5), (1, 1), 'same')(conv2)
             conv2 = tf.layers.BatchNormalization()(conv2)
             conv2 = tf.nn.leaky_relu(conv2, 0.2)
 
-            conv3 = tf.layers.MaxPooling2D((2, 2), (2, 2) 'same')(conv2)
+            conv3 = tf.layers.MaxPooling2D((2, 2), (2, 2), 'same')(conv2)
             conv3 = tf.layers.Conv2D(256, (3, 3), (1, 1), 'same')(conv3)
             conv3 = tf.layers.BatchNormalization()(conv3)
             conv3 = tf.nn.leaky_relu(conv3, 0.2)
 
-            conv4 = tf.layers.MaxPooling2D((2, 2), (2, 2) 'same')(conv3)
+            conv4 = tf.layers.MaxPooling2D((2, 2), (2, 2), 'same')(conv3)
             conv4 = tf.layers.Conv2D(256, (3, 3), (1, 1), 'same')(conv4)
             conv4 = tf.layers.BatchNormalization()(conv4)
             conv4 = tf.nn.leaky_relu(conv4, 0.2)
@@ -98,8 +98,8 @@ class DeepVoxelFlow(object):
             outputs = tf.layers.Conv2D(3, (5, 5), (1, 1), 'same')(conv7)
             outputs = tf.nn.tanh(outputs)
 
-            flow, mask = tf.split(outputs, [2, 1], axis = -1)
-            mask = tf.expand_dims(mask, axis = 3)
+            flow = outputs[:, :, :, :2]
+            mask = tf.expand_dims(outputs[:, :, :, 2], axis = 3)
 
             # Rescale the estimated optical flow to the actual size
             _, height, width, _ = tf.unstack(tf.shape(images))
@@ -123,6 +123,6 @@ class DeepVoxelFlow(object):
 
             return images_t, flow
 
-        @property
-        def vars(self):
-            return [var for var in tf.global_variables() if self.name in var.name]
+    @property
+    def vars(self):
+        return [var for var in tf.global_variables() if self.name in var.name]
