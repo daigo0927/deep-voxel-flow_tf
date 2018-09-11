@@ -7,6 +7,7 @@ def get_meshgrid(images):
                              indexing = 'ij')
     return gb, gy, gx
 
+
 def bilinear_warp(images, flow):
     _, h, w, _ = tf.unstack(tf.shape(images))
     gb, gy, gx = get_meshgrid(images)
@@ -57,43 +58,43 @@ class DeepVoxelFlow(object):
             images = tf.concat([images_0, images_1], axis = -1)
             conv1 = tf.layers.Conv2D(64, (5, 5), (1, 1), 'same')(images)
             conv1 = tf.layers.BatchNormalization()(conv1)
-            conv1 = tf.nn.leaky_relu(conv1, 0.2)
+            conv1 = tf.nn.relu(conv1)
 
             conv2 = tf.layers.MaxPooling2D((2, 2), (2, 2), 'same')(conv1)
             conv2 = tf.layers.Conv2D(128, (5, 5), (1, 1), 'same')(conv2)
             conv2 = tf.layers.BatchNormalization()(conv2)
-            conv2 = tf.nn.leaky_relu(conv2, 0.2)
+            conv2 = tf.nn.relu(conv2)
 
             conv3 = tf.layers.MaxPooling2D((2, 2), (2, 2), 'same')(conv2)
             conv3 = tf.layers.Conv2D(256, (3, 3), (1, 1), 'same')(conv3)
             conv3 = tf.layers.BatchNormalization()(conv3)
-            conv3 = tf.nn.leaky_relu(conv3, 0.2)
+            conv3 = tf.nn.relu(conv3)
 
             conv4 = tf.layers.MaxPooling2D((2, 2), (2, 2), 'same')(conv3)
             conv4 = tf.layers.Conv2D(256, (3, 3), (1, 1), 'same')(conv4)
             conv4 = tf.layers.BatchNormalization()(conv4)
-            conv4 = tf.nn.leaky_relu(conv4, 0.2)
+            conv4 = tf.nn.relu(conv4)
 
             _, h, w, _ = tf.unstack(tf.shape(conv4))
             conv4_up = tf.image.resize_bilinear(conv4, (2*h, 2*w))
             conv5 = tf.concat([conv4_up, conv3], axis = -1)
             conv5 = tf.layers.Conv2D(256, (3, 3), (1, 1), 'same')(conv5)
             conv5 = tf.layers.BatchNormalization()(conv5)
-            conv5 = tf.nn.leaky_relu(conv5, 0.2)
+            conv5 = tf.nn.relu(conv5)
 
             _, h, w, _ = tf.unstack(tf.shape(conv5))
             conv5_up = tf.image.resize_bilinear(conv5, (2*h, 2*w))
             conv6 = tf.concat([conv5_up, conv2], axis = -1)
             conv6 = tf.layers.Conv2D(128, (5, 5), (1, 1), 'same')(conv6)
             conv6 = tf.layers.BatchNormalization()(conv6)
-            conv6 = tf.nn.leaky_relu(conv6, 0.2)
+            conv6 = tf.nn.relu(conv6)
 
             _, h, w, _ = tf.unstack(tf.shape(conv6))
             conv6_up = tf.image.resize_bilinear(conv6, (2*h, 2*w))
             conv7 = tf.concat([conv6_up, conv1], axis = -1)
             conv7 = tf.layers.Conv2D(64, (5, 5), (1, 1), 'same')(conv7)
             conv7 = tf.layers.BatchNormalization()(conv7)
-            conv7 = tf.nn.leaky_relu(conv7, 0.2)
+            conv7 = tf.nn.relu(conv7)
 
             outputs = tf.layers.Conv2D(3, (5, 5), (1, 1), 'same')(conv7)
             outputs = tf.nn.tanh(outputs)
@@ -102,15 +103,15 @@ class DeepVoxelFlow(object):
             mask = tf.expand_dims(outputs[:, :, :, 2], axis = 3)
 
             # Rescale the estimated optical flow to the actual size
-            _, height, width, _ = tf.unstack(tf.shape(images))
+            _, h, w, _ = tf.unstack(tf.shape(images))
             fx, fy = tf.unstack(flow, axis = -1)
-            fx *= tf.cast(width, tf.float32)/2
-            fy *= tf.cast(height, tf.float32)/2
+            fx *= tf.cast(w, tf.float32)/2
+            fy *= tf.cast(h, tf.float32)/2
             flow = tf.stack([fx, fy], axis = -1)
 
             # Scale flow along time-axis
             t = tf.reshape(t, (-1, 1, 1, 1))
-            flow_tto0 = t*flow*(-1)
+            flow_tto0 = (-1)*t*flow
             flow_tto1 = (1-t)*flow
 
             # Warp pixel both from former and from latter frames
