@@ -8,7 +8,7 @@ from torch.utils import data
 from datahandler.utils import get_dataset
 from model import DeepVoxelFlow
 from losses import L1loss
-from utils import show_progress
+from utils import show_progress, vis_result
 
 
 class Trainer:
@@ -26,7 +26,7 @@ class Trainer:
                      'strides':self.args.strides, 'stretchable':self.args.stretchable,
                      'cropper':self.args.crop_type, 'crop_shape':self.args.crop_shape,
                      'resize_shape':self.args.resize_shape, 'resize_scale':self.args.resize_scale}
-        if self.args.dataset == 'davis_v':
+        if self.args.dataset == 'DAIVS_v':
             data_args['resolution'] = self.args.resolution
         elif self.args.dataset == 'Sintel_v':
             data_args['mode'] = self.args.mode
@@ -50,7 +50,7 @@ class Trainer:
 
         # L1 reproduction loss
         self.loss = L1loss(self.images[:,1], self.images_t_syn)
-        # TODO: weight regularization (if required in the paper)
+        # TODO...?: weight regularization (if required in the paper)
         # weights_l2 = tf.reduce_sum([tf.nn.l2_loss(var) for var in self.model.vars])
         # self.loss = loss + self.args.lambda_*weights_l2
 
@@ -67,6 +67,7 @@ class Trainer:
     def train(self):
         train_start = time.time()
         for e in range(self.args.num_epochs):
+            # Training
             for i, (images, t) in enumerate(self.tloader):
                 images = images.numpy()/255.0
                 t = t.numpy()
@@ -80,25 +81,27 @@ class Trainer:
                     kwargs = {'loss':loss, 'batch time':batch_time}
                     show_progress(e+1, i+1, self.num_batches, **kwargs)
 
+            # Validation
             loss_vals = []
             for images_val, t_val in self.vloader:
                 images_val = images_val.numpy()/255.0
                 t_val = t_val.numpy()
 
-                flow_val, loss_val \
-                    = self.sess.run([self.flow, self.loss],
+                images_t_syn, flow_val, loss_val \
+                    = self.sess.run([self.images_t_syn, self.flow, self.loss],
                                     feed_dict = {self.images: images_val, self.t: t_val})
                 loss_vals.append(loss_val)
 
             print(f'\r{e+1} epoch validation, loss: {np.mean(loss_vals)}'\
                   +f', elapsed time: {time.time()-train_start} sec.')
 
-            # TODO: visualize estimated results
+            # Visualize estimated results
             if self.args.visualize:
                 if not os.path.exists('./figure'):
                     os.mkdir('./figure')
+                vis_result(images_val[0], images_t_syn[0], flow_val[0], f'./figure/result_{e+1}epoch.png')
                 
-
+            # Save trained parameters
             if not os.path.exists('./model'):
                 os.mkdir('./model')
             self.saver.save(self.sess, f'./model/model_{e+1}.ckpt')
@@ -122,7 +125,7 @@ if __name__ == '__main__':
                         choices = ['clean', 'final'],
                         help = 'Image quality option for MPI-Sintel dataset')
     
-    parser.add_argument('--num_epochs', type = int, default = 100,
+    parser.add_argument('-e', '--num_epochs', type = int, default = 100,
                         help = '# of epochs [100]')
     parser.add_argument('--batch_size', type = int, default = 16,
                         help = 'Batch size [16]')
